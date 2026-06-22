@@ -1,5 +1,6 @@
 import Group from "../models/Group.js";
 import User from "../models/User.js";
+import { notify } from "../services/notificationService.js";
 
 export const createGroup = async (req, res) => {
   try {
@@ -108,6 +109,20 @@ export const joinGroup = async (req, res) => {
       }
       group.joinRequests.push({ user: req.user._id });
       await group.save();
+
+      await notify({
+        recipient: group.createdBy,
+        type: "join_request",
+        title: "New join request",
+        body: `${req.user.name} wants to join "${group.name}"`,
+        data: {
+          groupId: group._id,
+          groupName: group.name,
+          requesterId: req.user._id,
+          requesterName: req.user.name,
+        },
+      });
+
       return res.status(202).json({ message: "Join request sent" });
     }
     group.members.push(req.user._id);
@@ -136,6 +151,15 @@ export const removeMember = async (req, res) => {
       group.removedMembers.push({ user: userId, removedAt: new Date() });
     }
     await group.save();
+
+    await notify({
+      recipient: userId,
+      type: "member_removed",
+      title: "Removed from group",
+      body: `You have been removed from "${group.name}".`,
+      data: { groupId: group._id, groupName: group.name },
+    });
+
     res.json({ message: "Member removed" });
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -175,6 +199,25 @@ export const respondToJoinRequest = async (req, res) => {
     }
     await group.save();
     await group.populate("members", "name email avatar");
+
+    if (action === "accept") {
+      await notify({
+        recipient: userId,
+        type: "join_request_accepted",
+        title: "Join request approved",
+        body: `Your request to join "${group.name}" was approved!`,
+        data: { groupId: group._id, groupName: group.name },
+      });
+    } else {
+      await notify({
+        recipient: userId,
+        type: "join_request_declined",
+        title: "Join request declined",
+        body: `Your request to join "${group.name}" was declined.`,
+        data: { groupId: group._id, groupName: group.name },
+      });
+    }
+
     res.json({ message: action === "accept" ? "Member added" : "Request declined", group });
   } catch (err) {
     res.status(400).json({ message: err.message });

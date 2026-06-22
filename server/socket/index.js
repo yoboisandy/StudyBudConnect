@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import Message from "../models/Message.js";
 import Group from "../models/Group.js";
+import { initNotificationService } from "../services/notificationService.js";
 
 const onlineUsers = new Map(); // userId → socketId
 
@@ -30,9 +31,13 @@ export const initSocket = (httpServer) => {
     }
   });
 
+  initNotificationService(io);
+
   io.on("connection", (socket) => {
     const userId = socket.user._id.toString();
     onlineUsers.set(userId, socket.id);
+    // personal room for targeted notifications
+    socket.join(`user:${userId}`);
     io.emit("online_users", [...onlineUsers.keys()]);
 
     socket.on("join_group", (groupId) => {
@@ -43,17 +48,21 @@ export const initSocket = (httpServer) => {
       socket.leave(groupId);
     });
 
-    socket.on("send_message", async ({ groupId, content }) => {
+    socket.on("send_message", async ({ groupId, content, attachments }) => {
       try {
         const group = await Group.findById(groupId);
         if (!group?.members.includes(socket.user._id)) return;
-        const message = await Message.create({
+        const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
+        if (!content && !hasAttachments) return;
+        const messageData = {
           group: groupId,
           sender: socket.user._id,
-          content,
-        });
+          content: content || "",
+        };
+        if (hasAttachments) messageData.attachments = attachments;
+        const message = await Message.create(messageData);
         await message.populate("sender", "name email avatar");
-        io.to(groupId).emit("new_message", message);
+        io.to(groupId).emit("new_message", message.toJSON());
       } catch (err) {
         socket.emit("error", { message: err.message });
       }

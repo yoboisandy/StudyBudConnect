@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         "/api": apiTarget,
+        "/uploads": apiTarget,
         "/socket.io": { target: apiTarget, ws: true },
       },
     },

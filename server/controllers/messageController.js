@@ -17,3 +17,22 @@ export const getMessages = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+export const uploadFile = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    const { mimetype, originalname, size, filename } = req.file;
+    let fileType = "document";
+    if (mimetype.startsWith("image/")) fileType = "image";
+    else if (mimetype.startsWith("video/")) fileType = "video";
+    res.json({
+      url: `/uploads/${filename}`,
+      originalName: originalname,
+      mimetype,
+      size,
+      fileType,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};

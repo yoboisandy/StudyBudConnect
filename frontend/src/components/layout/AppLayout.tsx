@@ -2,7 +2,9 @@ import { useEffect } from "react"
 import { Outlet, Navigate, NavLink, useLocation } from "react-router-dom"
 import { useAuthStore } from "@/stores/authStore"
 import { useSocketStore } from "@/stores/socketStore"
+import { useNotificationStore, type AppNotification } from "@/stores/notificationStore"
 import { useTheme } from "@/components/theme-provider"
+import { NotificationPanel } from "@/components/shared/NotificationPanel"
 import {
   Sidebar,
   SidebarContent,
@@ -39,6 +41,7 @@ import {
   Monitor,
   ChevronsUpDown,
 } from "lucide-react"
+import { toast } from "sonner"
 
 const NAV = [
   { to: "/app/profile", label: "Profile", icon: User },
@@ -49,14 +52,32 @@ const NAV = [
 
 export default function AppLayout() {
   const { user, token, logout } = useAuthStore()
-  const { connect, disconnect } = useSocketStore()
+  const { socket, connect, disconnect } = useSocketStore()
+  const { fetch: fetchNotifications, add: addNotification } = useNotificationStore()
   const { theme, setTheme } = useTheme()
   const location = useLocation()
 
   useEffect(() => {
-    if (token) connect(token)
+    if (token) {
+      connect(token)
+      fetchNotifications()
+    }
     return () => disconnect()
-  }, [token, connect, disconnect])
+  }, [token])
+
+  // Real-time notification listener
+  useEffect(() => {
+    if (!socket) return
+    const onNotification = (notif: AppNotification) => {
+      addNotification(notif)
+      toast(notif.title, {
+        description: notif.body,
+        duration: 5000,
+      })
+    }
+    socket.on("notification", onNotification)
+    return () => { socket.off("notification", onNotification) }
+  }, [socket])
 
   if (!token) return <Navigate to="/login" replace />
 
@@ -186,6 +207,7 @@ export default function AppLayout() {
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <h1 className="flex-1 text-sm font-semibold">{pageLabel}</h1>
+          <NotificationPanel />
           <Button
             variant="ghost"
             size="icon"
