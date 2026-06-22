@@ -20,7 +20,7 @@ const LEARNING_STYLES = [
   { value: "visual", label: "Visual — diagrams, charts, videos" },
   { value: "auditory", label: "Auditory — lectures, discussions" },
   { value: "reading-writing", label: "Reading/Writing — notes, texts" },
-  { value: "kinesthetic", label: "Kinesthetic — hands-on practice" },
+  // { value: "kinesthetic", label: "Kinesthetic — hands-on practice" },
   { value: "mixed", label: "Mixed — combination of above" },
 ]
 
@@ -36,7 +36,7 @@ const COMM_OPTIONS = [
   { value: "text-chat", label: "Text chat" },
   // { value: "voice", label: "Voice call" },
   // { value: "video", label: "Video call" },
-  { value: "async", label: "Async (recorded/notes)" },
+  // { value: "async", label: "Async (recorded/notes)" },
 ]
 
 const schema = z.object({
