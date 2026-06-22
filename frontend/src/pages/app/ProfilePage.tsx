@@ -34,8 +34,8 @@ const ACCESSIBILITY_OPTIONS = [
 
 const COMM_OPTIONS = [
   { value: "text-chat", label: "Text chat" },
-  { value: "voice", label: "Voice call" },
-  { value: "video", label: "Video call" },
+  // { value: "voice", label: "Voice call" },
+  // { value: "video", label: "Video call" },
   { value: "async", label: "Async (recorded/notes)" },
 ]
 
