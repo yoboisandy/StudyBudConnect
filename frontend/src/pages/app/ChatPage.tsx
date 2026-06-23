@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom"
 import {
   Send, Circle, Search, Users, MessageSquare, ShieldOff,
   Paperclip, X, Info, FileText, FileSpreadsheet, FileType, File as FileIcon, Film,
+  Volume2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -99,6 +100,31 @@ function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+// ─── Speech helpers ───────────────────────────────────────────────────────────
+
+function speak(text: string) {
+  if (!("speechSynthesis" in window)) return
+  window.speechSynthesis.cancel()
+  const utt = new SpeechSynthesisUtterance(text)
+  utt.rate = 1
+  utt.pitch = 1
+  window.speechSynthesis.speak(utt)
+}
+
+function buildSpeechText(msg: Pick<Message, "sender" | "content" | "attachments">): string {
+  const senderName = msg.sender.name
+  const parts: string[] = []
+  if (msg.attachments && msg.attachments.length > 0) {
+    for (const att of msg.attachments) {
+      if (att.fileType === "image") parts.push(`Image sent by ${senderName}.`)
+      else if (att.fileType === "video") parts.push(`Video sent by ${senderName}.`)
+      else parts.push(`Document "${att.originalName}" sent by ${senderName}.`)
+    }
+  }
+  if (msg.content) parts.push(`${senderName}: ${msg.content}`)
+  return parts.join(" ")
 }
 
 function MessageText({ content }: { content: string }) {
@@ -202,6 +228,7 @@ export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const userRef = useRef(user)
   const activeGroup = groups.find((g) => g._id === groupId)
 
   const removedEntry = user && activeGroupDetail?.removedMembers?.find(
@@ -209,6 +236,10 @@ export default function ChatPage() {
   )
   const isRemoved = !!removedEntry
   const removedAt = removedEntry?.removedAt ? new Date(removedEntry.removedAt) : null
+  const isScreenReaderUser = user?.accessibilityNeeds?.includes("screen-reader") ?? false
+
+  // Keep ref in sync so stale-closure-safe effects can read current values
+  useEffect(() => { userRef.current = user }, [user])
 
   useEffect(() => {
     api.get("/groups/mine")
@@ -255,6 +286,12 @@ export default function ChatPage() {
         return [...prev, msg]
       })
       setTypingUsers((prev) => prev.filter((n) => n !== msg.sender.name))
+      // Auto-read incoming messages (not own) for screen-reader users
+      const currentUser = userRef.current
+      const isScreenReader = currentUser?.accessibilityNeeds?.includes("screen-reader") ?? false
+      if (isScreenReader && msg.sender._id !== currentUser?._id) {
+        speak(buildSpeechText(msg))
+      }
     }
     const onTyping = ({ name }: { name: string }) => {
       setTypingUsers((prev) => prev.includes(name) ? prev : [...prev, name])
@@ -506,7 +543,7 @@ export default function ChatPage() {
                     const isMe = msg.sender._id === user?._id
                     const hasAttachment = msg.attachments && msg.attachments.length > 0
                     return (
-                      <div key={msg._id} className={cn("flex gap-2", isMe && "flex-row-reverse")}>
+                      <div key={msg._id} className={cn("group/msg flex gap-2 items-end", isMe && "flex-row-reverse")}>
                         {!isMe && (
                           <Avatar className="h-7 w-7 shrink-0 self-end">
                             <AvatarImage src={msg.sender.avatar} alt={msg.sender.name} />
@@ -536,6 +573,19 @@ export default function ChatPage() {
                             {formatMsgTime(msg.createdAt)}
                           </p>
                         </div>
+                        {/* Read-aloud button — always visible for screen-reader users, hover-visible otherwise */}
+                        <button
+                          onClick={() => speak(buildSpeechText(msg))}
+                          aria-label={`Read message from ${msg.sender.name} aloud`}
+                          className={cn(
+                            "mb-1 shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                            isScreenReaderUser
+                              ? "opacity-100"
+                              : "opacity-0 group-hover/msg:opacity-100"
+                          )}
+                        >
+                          <Volume2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     )
                   })}
