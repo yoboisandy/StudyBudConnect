@@ -26,9 +26,9 @@ const LEARNING_STYLES = [
 
 const ACCESSIBILITY_OPTIONS = [
   { value: "screen-reader", label: "Screen reader" },
-  { value: "captions", label: "Captions / subtitles" },
-  { value: "keyboard-nav", label: "Keyboard navigation" },
-  { value: "high-contrast", label: "High contrast" },
+  // { value: "captions", label: "Captions / subtitles" },
+  // { value: "keyboard-nav", label: "Keyboard navigation" },
+  // { value: "high-contrast", label: "High contrast" },
   { value: "none", label: "No specific needs" },
 ]
 
