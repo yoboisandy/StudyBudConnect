@@ -1,4 +1,13 @@
-import { useMemo } from "react"
+import { useState, useMemo } from "react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
   Dialog,
   DialogContent,
@@ -11,8 +20,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import {
   FileText, FileSpreadsheet, FileType, File as FileIcon,
-  Film, Link2, Crown, Users,
+  Film, Link2, Crown, Users, LogOut, Loader2,
 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { useAuthStore } from "@/stores/authStore"
+import api from "@/lib/api"
+import { toast } from "sonner"
 
 interface GroupMember {
   _id: string
@@ -52,6 +65,7 @@ interface Props {
   onClose: () => void
   group: GroupDetail
   messages: Message[]
+  onLeft?: () => void
 }
 
 function initials(name: string) {
@@ -74,8 +88,29 @@ function DocIcon({ mimetype }: { mimetype: string }) {
 
 const URL_RE = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/g
 
-export function ChatInfoModal({ open, onClose, group, messages }: Props) {
+export function ChatInfoModal({ open, onClose, group, messages, onLeft }: Props) {
   const apiBase = import.meta.env.VITE_API_URL ?? ""
+  const { user } = useAuthStore()
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
+  const [leavingLoading, setLeavingLoading] = useState(false)
+
+  const isOwner = user?._id === group.createdBy._id
+  const canLeave = !isOwner
+
+  const handleLeaveGroup = async () => {
+    setLeavingLoading(true)
+    try {
+      await api.post(`/groups/${group._id}/leave`)
+      toast.success("Left group successfully")
+      setShowLeaveConfirm(false)
+      onClose()
+      onLeft?.()
+    } catch {
+      toast.error("Failed to leave group")
+    } finally {
+      setLeavingLoading(false)
+    }
+  }
 
   const media = useMemo(() =>
     messages.flatMap((m) => m.attachments ?? []).filter((a) => a.fileType === "image" || a.fileType === "video"),
@@ -97,6 +132,7 @@ export function ChatInfoModal({ open, onClose, group, messages }: Props) {
   }, [messages])
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
       <DialogContent className="max-w-md max-h-[85vh] flex flex-col p-0 gap-0">
         <DialogHeader className="px-5 pt-5 pb-4 border-b shrink-0">
@@ -247,13 +283,51 @@ export function ChatInfoModal({ open, onClose, group, messages }: Props) {
           </TabsContent>
         </Tabs>
 
-        <div className="px-5 py-3 border-t shrink-0">
+        <div className="px-5 py-3 border-t shrink-0 space-y-2">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Users className="h-3.5 w-3.5" />
             Owner: {group.createdBy.name}
           </div>
+          {canLeave && (
+            <Button
+              variant="destructive"
+              size="sm"
+              className="w-full gap-2"
+              onClick={() => setShowLeaveConfirm(true)}
+              disabled={leavingLoading}
+            >
+              {leavingLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <LogOut className="h-4 w-4" />
+              )}
+              Leave group
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Leave confirmation dialog */}
+    <AlertDialog open={showLeaveConfirm} onOpenChange={setShowLeaveConfirm}>
+      <AlertDialogContent className="max-w-sm">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Leave group?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to leave "{group.name}"? You'll lose access to the chat.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="flex gap-2">
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleLeaveGroup} disabled={leavingLoading} className="bg-destructive hover:bg-destructive/90">
+            {leavingLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : null}
+            Leave
+          </AlertDialogAction>
+        </div>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   )
 }

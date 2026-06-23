@@ -241,11 +241,12 @@ export default function ChatPage() {
   // Keep ref in sync so stale-closure-safe effects can read current values
   useEffect(() => { userRef.current = user }, [user])
 
-  useEffect(() => {
+  const loadGroups = () =>
     api.get("/groups/mine")
       .then(({ data }) => setGroups(data))
       .finally(() => setLoadingGroups(false))
-  }, [])
+
+  useEffect(() => { loadGroups() }, [])
 
   useEffect(() => {
     if (!groupId) return
@@ -385,7 +386,7 @@ export default function ChatPage() {
       ...prev,
       {
         _id: `temp-${Date.now()}`,
-        sender: { _id: user!._id, name: user!.name, avatar: user?.avatar },
+        sender: { _id: user!._id, name: user!.name ?? "", avatar: user?.avatar },
         content,
         createdAt: new Date().toISOString(),
         attachments: attachments as Attachment[],
@@ -685,6 +686,7 @@ export default function ChatPage() {
           onClose={() => setShowInfo(false)}
           group={activeGroupDetail}
           messages={messages}
+          onLeft={() => { loadGroups(); navigate("/app/chat") }}
         />
       )}
     </div>

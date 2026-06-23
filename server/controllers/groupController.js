@@ -126,6 +126,10 @@ export const joinGroup = async (req, res) => {
       return res.status(202).json({ message: "Join request sent" });
     }
     group.members.push(req.user._id);
+    // Clear any prior removedMembers entry so they don't see the kicked banner
+    group.removedMembers = group.removedMembers.filter(
+      (r) => r.user.toString() !== req.user._id.toString()
+    );
     await group.save();
     await group.populate("members", "name email avatar");
     res.json(group);
@@ -219,6 +223,25 @@ export const respondToJoinRequest = async (req, res) => {
     }
 
     res.json({ message: action === "accept" ? "Member added" : "Request declined", group });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+export const leaveGroup = async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ message: "Group not found" });
+    if (!group.members.includes(req.user._id)) {
+      return res.status(409).json({ message: "Not a member of this group" });
+    }
+    if (group.createdBy.toString() === req.user._id.toString()) {
+      return res.status(400).json({ message: "Owner cannot leave the group" });
+    }
+    group.members = group.members.filter((m) => m.toString() !== req.user._id.toString());
+    // Don't add to removedMembers — that list is for admin-kicked users only
+    await group.save();
+    res.json({ message: "Left group successfully" });
   } catch (err) {
     res.status(400).json({ message: err.message });
   }

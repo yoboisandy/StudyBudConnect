@@ -9,6 +9,7 @@ import {
   removeMember,
   getJoinRequests,
   respondToJoinRequest,
+  leaveGroup,
 } from "../controllers/groupController.js";
 import { protect } from "../middleware/auth.js";
 
@@ -21,6 +22,7 @@ router.get("/mine", getMyGroups);
 router.get("/:id", getGroupById);
 router.put("/:id", updateGroup);
 router.post("/:id/join", joinGroup);
+router.post("/:id/leave", leaveGroup);
 router.get("/:id/join-requests", getJoinRequests);
 router.delete("/:id/members/:userId", removeMember);
 router.post("/:id/join-requests/respond", respondToJoinRequest);
